@@ -70,6 +70,11 @@ class CanvasKit extends StatefulWidget {
   final double boundsFitPadding;
   final ValueChanged<CanvasKitRenderStats>? onRenderStats;
 
+  /// When true, all children stay in the widget tree regardless of viewport
+  /// visibility. The app controls which items are in [children]; canvas_kit
+  /// skips its internal visibility culling. Default is false (cull off-screen).
+  final bool keepChildrenMounted;
+
   // Optional: if provided in programmatic mode, the package will not handle
   // background pan/wheel; instead, this overlay can implement all gestures.
   // The overlay receives current transform and controller.
@@ -97,6 +102,7 @@ class CanvasKit extends StatefulWidget {
     this.autoFitToBounds = true,
     this.boundsFitPadding = 40.0,
     this.onRenderStats,
+    this.keepChildrenMounted = false,
   });
 
   @override
@@ -568,6 +574,7 @@ class _CanvasKitState extends State<CanvasKit> {
                 viewportSize: viewportSize,
                 controller: _controller!,
                 onRenderStats: widget.onRenderStats,
+                keepChildrenMounted: widget.keepChildrenMounted,
                 children: widget.children,
               ),
             ),
@@ -695,6 +702,7 @@ class SimpleCanvas extends StatelessWidget {
   final Size? viewportSize;
   final CanvasKitController? controller;
   final ValueChanged<CanvasKitRenderStats>? onRenderStats;
+  final bool keepChildrenMounted;
 
   const SimpleCanvas({
     super.key,
@@ -704,6 +712,7 @@ class SimpleCanvas extends StatelessWidget {
     this.viewportSize,
     this.controller,
     this.onRenderStats,
+    this.keepChildrenMounted = false,
   });
 
   @override
@@ -812,9 +821,10 @@ class SimpleCanvas extends StatelessWidget {
     int visibleViewportCount = 0;
 
     for (final item in children) {
-      final visible = isVisible(item);
-
-      if (!visible) continue;
+      if (!keepChildrenMounted) {
+        final visible = isVisible(item);
+        if (!visible) continue;
+      }
 
       if (item.anchor == CanvasAnchor.world) {
         Widget visual = item.child;
