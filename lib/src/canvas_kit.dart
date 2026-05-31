@@ -78,6 +78,23 @@ class CanvasKit extends StatefulWidget {
   final Widget Function(Matrix4 transform, CanvasKitController controller)?
       gestureOverlayBuilder;
 
+  /// When true, CanvasKit builds no internal pan/pinch [GestureDetector] and
+  /// ignores pointer‑signal (mouse‑wheel) zoom, regardless of [interactionMode]
+  /// or [gestureOverlayBuilder]. Use this when the embedding app owns all input
+  /// from its own gesture layer — e.g. a full‑screen layer stacked *above*
+  /// CanvasKit that hit‑tests in world space and drives the [controller]
+  /// directly.
+  ///
+  /// Prefer this explicit flag over the legacy idiom of passing an empty
+  /// `gestureOverlayBuilder: (_, _) => SizedBox.shrink()` purely to disable the
+  /// library's gestures. (Note the [gestureOverlayBuilder] result is composited
+  /// *below* the canvas children, so it cannot host a layer that must hit‑test
+  /// above items — such a layer belongs in a sibling stacked above CanvasKit,
+  /// which is exactly the case this flag serves.)
+  ///
+  /// Default is false (the library handles input per [interactionMode]).
+  final bool suppressInternalGestures;
+
   const CanvasKit({
     super.key,
     required this.children,
@@ -97,6 +114,7 @@ class CanvasKit extends StatefulWidget {
     this.autoFitToBounds = true,
     this.boundsFitPadding = 40.0,
     this.onRenderStats,
+    this.suppressInternalGestures = false,
   });
 
   @override
@@ -470,14 +488,18 @@ class _CanvasKitState extends State<CanvasKit> {
       final transform = _controller!._transform;
       final scale = _controller!.scale;
 
+      // Input is handled internally unless the app explicitly opts out via
+      // [suppressInternalGestures], or (the legacy idiom) supplies a gesture
+      // overlay in programmatic mode.
+      final suppressInternal = widget.suppressInternalGestures ||
+          (widget.interactionMode == InteractionMode.programmatic &&
+              widget.gestureOverlayBuilder != null);
+
       return Listener(
         behavior: HitTestBehavior.translucent,
         onPointerSignal: (event) {
           if (!widget.enableWheelZoom || event is! PointerScrollEvent) return;
-          if (widget.interactionMode == InteractionMode.programmatic &&
-              widget.gestureOverlayBuilder != null) {
-            return;
-          }
+          if (suppressInternal) return;
           final double scaleDelta = event.scrollDelta.dy > 0 ? 0.9 : 1.1;
           final Offset screenPos = event.localPosition;
           final Offset worldBefore = _controller!.screenToWorld(screenPos);
@@ -504,8 +526,7 @@ class _CanvasKitState extends State<CanvasKit> {
                   child:
                       widget.gestureOverlayBuilder!(transform, _controller!)),
 
-            if (!(widget.interactionMode == InteractionMode.programmatic &&
-                widget.gestureOverlayBuilder != null))
+            if (!suppressInternal)
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
