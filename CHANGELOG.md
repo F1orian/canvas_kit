@@ -1,3 +1,15 @@
+## Unreleased
+
+Feature:
+- Add `suppressInternalGestures` flag to `CanvasKit`. When true, the widget
+  builds no internal pan/pinch `GestureDetector` and ignores pointer‑signal
+  (mouse‑wheel) zoom, regardless of `interactionMode` or `gestureOverlayBuilder`.
+  This makes "the embedding app owns all input" an explicit, self‑documenting
+  intent instead of requiring an empty `gestureOverlayBuilder: (_, _) =>
+  SizedBox.shrink()` to flip the switch. Default `false` (no behavior change for
+  existing callers; the previous implicit `programmatic + gestureOverlayBuilder`
+  suppression still applies).
+
 ## 0.6.1 - 2026-03-06
 
 Fix:
